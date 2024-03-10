@@ -1,2 +1,6 @@
-openai==1.13.3
 elevenlabs==0.2.27
+openai==1.13.3
+PyAudio
+rich
+setuptools
+SpeechRecognition

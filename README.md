@@ -1,6 +1,6 @@
 # AI Assistant with Text-to-Speech
 
-This project is a CLI AI Assistant that uses OpenAI's API to generate responses and ElevenLabs Text-to-Speech API to convert the responses into audio.
+This project is a CLI or Voice AI Assistant that uses OpenAI's API to generate responses and ElevenLabs Text-to-Speech API to convert the responses into audio quickly.
 
 ## Features
 
@@ -15,7 +15,7 @@ This project is a CLI AI Assistant that uses OpenAI's API to generate responses 
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/Eloquent-Algorithmics/OAI-QuickChat.git
+git clone https://github.com/Explorergt92/OAI-QuickChat.git
 ```
 ```
 cd OAI-QuickChat
@@ -39,9 +39,11 @@ cp .env.template .env
 
 1. Run the AI Assistant:
 
-```bash
-python main.py
-```
+```python main.py``` to type your requests in the terminal
+
+or
+
+```python main.py --voice``` to talk to the assistant
 
 2. Enter your question or command when prompted:
 
