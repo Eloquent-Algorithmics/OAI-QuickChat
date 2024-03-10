@@ -3,7 +3,7 @@ import time
 import sys
 import speech_recognition as sr
 from openai import OpenAI
-from elevenlabs import generate, stream
+from elevenlabs import Voice, VoiceSettings, generate, stream
 from rich.console import Console
 from rich.text import Text
 
@@ -22,8 +22,8 @@ def generate_and_play_response(user_input, conversation_history):
     completion = oai_client.chat.completions.create(
         model="gpt-3.5-turbo",  # gpt-3.5-turbo gpt-4-turbo-preview
         messages=conversation_history,
-        temperature=1,
-        max_tokens=128,
+        temperature=0,
+        max_tokens=64,
         stream=True,
     )
 
@@ -43,7 +43,16 @@ def generate_and_play_response(user_input, conversation_history):
 
     audio_stream = generate(
         text=text_stream(),
-        voice=voice_id,
+        voice=Voice(
+            voice_id=voice_id,
+            settings=VoiceSettings(
+                stability=0.5,
+                similarity_boost=0.0,
+                style=0.0,
+                use_speaker_boost=True,
+                optimize_streaming_latency=4,
+            ),
+        ),
         model="eleven_turbo_v2",
         stream=True,
         api_key=e_api_key,
@@ -83,7 +92,13 @@ def main(use_voice_input=False):
         else:
             user_input = input("How can I help you? ")
 
+        start_time = time.time()
+
         generate_and_play_response(user_input, conversation_history)
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+        console.print(f"Execution time: {execution_time} seconds")
 
 
 if __name__ == "__main__":
