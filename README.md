@@ -16,7 +16,9 @@ This project is a CLI AI Assistant that uses OpenAI's API to generate responses 
 
 ```bash
 git clone https://github.com/Eloquent-Algorithmics/OAI-QuickChat.git
-cd ai-assistant-tts
+```
+```
+cd OAI-QuickChat
 ```
 
 2. Install the required packages:
