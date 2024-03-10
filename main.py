@@ -13,7 +13,7 @@ oai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 e_api_key = os.environ.get("ELEVENLABS_API_KEY")
 
-voice_id = os.environ.get("ELEVENLABS_VOICE_ID")
+voice_ident = os.environ.get("ELEVENLABS_VOICE_ID")
 
 
 def generate_and_play_response(user_input, conversation_history):
@@ -44,7 +44,7 @@ def generate_and_play_response(user_input, conversation_history):
     audio_stream = generate(
         text=text_stream(),
         voice=Voice(
-            voice_id=voice_id,
+            voice_id=voice_ident,
             settings=VoiceSettings(
                 stability=0.5,
                 similarity_boost=0.0,
