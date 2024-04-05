@@ -1,19 +1,24 @@
-import os
+
 import time
 import sys
 import speech_recognition as sr
 from openai import OpenAI
-from elevenlabs import Voice, VoiceSettings, generate, stream
+from elevenlabs import stream
+from elevenlabs.client import ElevenLabs, Voice, VoiceSettings
 from rich.console import Console
 from rich.text import Text
+from config import (
+    OPENAI_API_KEY,
+    OPENAI_SYSTEM_PROMPT,
+    ELEVENLABS_API_KEY,
+    ELEVENLABS_VOICE_ID,
+)
 
 console = Console()
 
-oai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-
-e_api_key = os.environ.get("ELEVENLABS_API_KEY")
-
-voice_ident = os.environ.get("ELEVENLABS_VOICE_ID")
+oai_client = OpenAI(api_key=OPENAI_API_KEY)
+e_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
+voice_ident = ELEVENLABS_VOICE_ID
 
 
 def generate_and_play_response(user_input, conversation_history):
@@ -34,17 +39,17 @@ def generate_and_play_response(user_input, conversation_history):
 
     conversation_history.append({"role": "assistant", "content": response_text.strip()})
 
-    assistant_text = Text(f"Assistant: ", style="green")
+    assistant_text = Text("Assistant: ", style="green")
     assistant_text.append(response_text.strip())
     console.print(assistant_text)
 
     def text_stream():
         yield response_text
 
-    audio_stream = generate(
+    audio_stream = e_client.generate(
         text=text_stream(),
         voice=Voice(
-            voice_id=voice_ident,
+            voice_id=ELEVENLABS_VOICE_ID,
             settings=VoiceSettings(
                 stability=0.5,
                 similarity_boost=0.0,
@@ -55,7 +60,6 @@ def generate_and_play_response(user_input, conversation_history):
         ),
         model="eleven_turbo_v2",
         stream=True,
-        api_key=e_api_key,
     )
 
     stream(audio_stream)
@@ -82,7 +86,9 @@ def recognize_speech(timeout=20):
 
 
 def main(use_voice_input=False):
-    conversation_history = [{"role": "system", "content": "You are an AI Assistant"}]
+    conversation_history = [
+        {"role": "system", "content": OPENAI_SYSTEM_PROMPT}
+    ]
 
     while True:
         if use_voice_input:
