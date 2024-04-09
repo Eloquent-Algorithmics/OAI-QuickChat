@@ -1,4 +1,4 @@
-elevenlabs==1.0.4
+elevenlabs==1.0.5
 openai==1.16.2
 PyAudio==0.2.14
 rich==13.7.1

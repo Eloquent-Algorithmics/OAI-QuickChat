@@ -2,20 +2,19 @@
 This script uses the AzureOpenAI Service and ElevenLabs websockets
 """
 import sys
-import time
 import json
 import base64
 import shutil
 import subprocess
 import signal
 import asyncio
-import speech_recognition as sr
+import speech_recognition as sr  # type: ignore
 from openai import AsyncAzureOpenAI
 from rich.console import Console
 from rich.text import Text
 import websockets
-from config import (
-    OPENAI_SYSTEM_PROMPT_WS,
+from config_ws import (
+    AZURE_SYSTEM_PROMPT,
     AZURE_OPENAI_ENDPOINT,
     AZURE_OPENAI_KEY,
     AZURE_API_VERSION,
@@ -23,10 +22,11 @@ from config import (
     ELEVENLABS_API_KEY,
     ELEVENLABS_VOICE_ID,
 )
+
 console = Console()
 
-azoai_client = AsyncAzureOpenAI(
-    azure_endpoint=AZURE_OPENAI_ENDPOINT,
+az_oai_client = AsyncAzureOpenAI(
+    azure_endpoint=str(AZURE_OPENAI_ENDPOINT),
     api_key=AZURE_OPENAI_KEY,
     api_version=AZURE_API_VERSION,
 )
@@ -35,6 +35,15 @@ voice_id = ELEVENLABS_VOICE_ID
 
 
 def is_installed(lib_name):
+    """
+    Check if a library is installed.
+
+    Args:
+        lib_name (str): The name of the library to check.
+
+    Returns:
+        bool: True if the library is installed, False otherwise.
+    """
     return shutil.which(lib_name) is not None
 
 
@@ -130,13 +139,27 @@ async def text_to_speech_input_streaming(text_iterator):
 
 
 async def generate_and_play_response(user_input, conversation_history):
+    """
+    Generates response using Azure OpenAI model and plays using TTS streaming.
+
+    Args:
+        user_input (str): The user's input.
+        conversation_history (list):
+            A list of dictionaries representing the conversation history.
+
+    Returns:
+        None
+    """
     conversation_history.append({"role": "user", "content": user_input})
 
-    response = await azoai_client.chat.completions.create(
+    response = await az_oai_client.chat.completions.create(
         model=AZURE_OPENAI_MODEL,
         messages=conversation_history,
-        temperature=0,
-        max_tokens=64,
+        temperature=1,
+        top_p=1,
+        max_tokens=128,
+        frequency_penalty=1,
+        presence_penalty=0.5,
         stream=True,
     )
 
@@ -154,7 +177,9 @@ async def generate_and_play_response(user_input, conversation_history):
     await text_to_speech_input_streaming(text_iterator())
 
     response_text = "".join(content_list)
-    conversation_history.append({"role": "assistant", "content": response_text.strip()})
+    conversation_history.append(
+        {"role": "assistant", "content": response_text.strip()}
+    )
 
     assistant_text = Text("Assistant: ", style="green")
     assistant_text.append(response_text.strip())
@@ -162,6 +187,15 @@ async def generate_and_play_response(user_input, conversation_history):
 
 
 def recognize_speech(timeout=20):
+    """
+    Recognizes speech from the user using the microphone.
+
+    Args:
+        timeout (int): The maximum number of seconds to wait for speech input.
+
+    Returns:
+        str or None: The recognized speech as a string if successful.
+    """
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         console.print("Listening...\n")
@@ -183,39 +217,46 @@ def recognize_speech(timeout=20):
         return None
 
 
-def signal_handler(sig, frame):
-    console.print("\nGoodbye for now ...\n")
-    sys.exit(0)
-
-
-async def main(use_voice_input=False):
+async def main(use_voice=False):
     """
     Main entry point for the application.
 
     Args:
-        use_voice_input (bool, optional): _description_. Defaults to False.
+        use_voice (bool, optional): Whether to use voice input.
     """
     conversation_history = [
-        {"role": "system", "content": OPENAI_SYSTEM_PROMPT_WS}
+        {"role": "system", "content": AZURE_SYSTEM_PROMPT}
     ]
 
     while True:
         try:
-            if use_voice_input:
+            if use_voice:
                 user_input = recognize_speech()
                 if user_input is None:
                     continue
             else:
                 user_input = input("\nHow can I help you? ")
 
-            start_time = time.time()
             await generate_and_play_response(user_input, conversation_history)
-            end_time = time.time()
-            execution_time = end_time - start_time
-            console.print(f"Execution time: {execution_time} seconds")
+
         except KeyboardInterrupt:
             console.print("\n\nGoodbye for now ...\n")
             break
+
+
+def signal_handler(_sig, _frame):
+    """
+    Handles the signal received by the program.
+
+    Args:
+        sig (int): The signal number.
+        frame (frame): The current stack frame.
+
+    Returns:
+        None
+    """
+    console.print("\n\nGoodbye for now ...\n")
+    sys.exit(0)
 
 
 if __name__ == "__main__":

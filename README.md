@@ -1,6 +1,6 @@
 # AI Assistant with Text-to-Speech
 
-This project is a CLI or Voice AI Assistant that uses OpenAI's API to generate responses and ElevenLabs Text-to-Speech API to convert the responses into audio quickly.
+This project is a Text or Voice Input AI Assistant that uses the OpenAI API to generate responses and the ElevenLabs Text-to-Speech API to convert the responses into audio quickly.
 
 ## Features
 
@@ -8,7 +8,7 @@ This project is a CLI or Voice AI Assistant that uses OpenAI's API to generate r
 - Customizable voice selection
 - Easy-to-use command-line interface
 - Powered by OpenAI and ElevenLabs
-- ** Paid ElevenLabs subscription required **
+- **Paid ElevenLabs subscription required**
 
 ## Installation
 
@@ -16,44 +16,49 @@ This project is a CLI or Voice AI Assistant that uses OpenAI's API to generate r
 
 ```bash
 git clone https://github.com/Explorergt92/OAI-QuickChat.git
-```
-```
+
 cd OAI-QuickChat
 ```
 
-2. Install the required packages:
+- Create a conda environment:
+
+```bash
+conda create -n qchat python=3.12 -y
+```
+
+- Install the required packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the project root directory using the provided `.env.template` file. Fill in the required API keys and voice ID:
+- Create a `.env` file in the project root directory using the provided `.env.template` file. Fill in the required API keys and voice ID:
 
 ```bash
 cp .env.template .env
 ```
 
-4. Edit the `.env` file and add your OpenAI API key, ElevenLabs API key, and desired ElevenLabs voice ID.
+- Edit the `.env` file and add your OpenAI API key, ElevenLabs API key, and desired ElevenLabs voice ID.
 
 ## Usage
 
-1. Run the AI Assistant:
+- Run the AI Assistant:
 
-```python main.py``` to type your requests in the terminal
+```python main.py``` to type your requests in the terminal.
 
-or
+```python main.py --voice``` to talk to the assistant.
 
-```python main.py --voice``` to talk to the assistant
+- Use the following to use the AzureOpenAI websockets version of the assistant:
 
-2. Enter your question or command when prompted:
+```python main_ws.py``` to type your requests in the terminal.
 
-```
-How can I help you? What is the capital of France?
-```
+```python main_ws.py --voice``` to talk to the assistant.
 
-3. The AI Assistant will generate a response and play it as audio.
+- Enter your question or command when prompted.
 
-4. To exit the AI Assistant, press `CTRL+C`.
+- The AI Assistant will generate a response and play it as audio.
+
+- To exit the AI Assistant, press `CTRL+C`.
 
 ## Customization
 

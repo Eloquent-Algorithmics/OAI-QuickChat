@@ -1,7 +1,8 @@
-
-import time
+"""
+This script uses the OpenAI API and ElevenLab's REST API
+"""
 import sys
-import speech_recognition as sr
+import speech_recognition as sr  # type: ignore
 from openai import OpenAI
 from elevenlabs import stream
 from elevenlabs.client import ElevenLabs, Voice, VoiceSettings
@@ -9,6 +10,8 @@ from rich.console import Console
 from rich.text import Text
 from config import (
     OPENAI_API_KEY,
+    OPENAI_ORG_ID,
+    OPENAI_MODEL,
     OPENAI_SYSTEM_PROMPT,
     ELEVENLABS_API_KEY,
     ELEVENLABS_VOICE_ID,
@@ -16,28 +19,46 @@ from config import (
 
 console = Console()
 
-oai_client = OpenAI(api_key=OPENAI_API_KEY)
+oai_client = OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORG_ID)
 e_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 voice_ident = ELEVENLABS_VOICE_ID
 
 
 def generate_and_play_response(user_input, conversation_history):
+    """
+    Generates response using the OpenAI API and
+    plays it using the ElevenLabs TTS API.
+
+    Args:
+        user_input (str): The user's input.
+        conversation_history (list): The conversation history as a list of
+        dictionaries, where each dictionary represents a message with 'role'
+        (either 'user' or 'assistant') and 'content' (the message content).
+
+    Returns:
+        None
+    """
     conversation_history.append({"role": "user", "content": user_input})
 
     completion = oai_client.chat.completions.create(
-        model="gpt-3.5-turbo",  # gpt-3.5-turbo gpt-4-turbo-preview
+        model=OPENAI_MODEL,
         messages=conversation_history,
-        temperature=0,
-        max_tokens=64,
+        temperature=1,
+        top_p=1,
+        max_tokens=128,
+        frequency_penalty=1,
+        presence_penalty=0.5,
         stream=True,
     )
 
     response_text = ""
-    for chunk in completion:
+    for chunk in list(completion):
         if chunk.choices[0].delta.content is not None:
             response_text += chunk.choices[0].delta.content
 
-    conversation_history.append({"role": "assistant", "content": response_text.strip()})
+    conversation_history.append(
+        {"role": "assistant", "content": response_text.strip()}
+    )
 
     assistant_text = Text("Assistant: ", style="green")
     assistant_text.append(response_text.strip())
@@ -66,6 +87,16 @@ def generate_and_play_response(user_input, conversation_history):
 
 
 def recognize_speech(timeout=20):
+    """
+    Recognizes speech from the microphone input.
+
+    Args:
+        timeout (int): The maximum number of seconds to wait for speech input.
+
+    Returns:
+        str or None: The recognized speech as a string,
+        or None if no speech was detected or an error occurred.
+    """
     recognizer = sr.Recognizer()
     with sr.Microphone() as source:
         console.print("Listening...\n")
@@ -85,26 +116,29 @@ def recognize_speech(timeout=20):
         return None
 
 
-def main(use_voice_input=False):
+def main(use_voice=False):
+    """
+    Main function for running the QuickChat application.
+
+    Parameters:
+    - use_voice (bool): Flag indicating whether to use voice input.
+
+    Returns:
+    - None
+    """
     conversation_history = [
         {"role": "system", "content": OPENAI_SYSTEM_PROMPT}
     ]
 
     while True:
-        if use_voice_input:
+        if use_voice:
             user_input = recognize_speech()
             if user_input is None:
                 continue
         else:
-            user_input = input("How can I help you? ")
-
-        start_time = time.time()
+            user_input = input("\nHow can I help you? ")
 
         generate_and_play_response(user_input, conversation_history)
-
-        end_time = time.time()
-        execution_time = end_time - start_time
-        console.print(f"Execution time: {execution_time} seconds")
 
 
 if __name__ == "__main__":
@@ -112,4 +146,4 @@ if __name__ == "__main__":
         use_voice_input = "--voice" in sys.argv
         main(use_voice_input)
     except KeyboardInterrupt:
-        console.print("\nGoodbye for now ...\n")
+        console.print("\n\nGoodbye for now ...\n")
