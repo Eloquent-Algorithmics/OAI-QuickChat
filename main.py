@@ -60,7 +60,7 @@ def generate_and_play_response(user_input, conversation_history):
         {"role": "assistant", "content": response_text.strip()}
     )
 
-    assistant_text = Text("Assistant: ", style="green")
+    assistant_text = Text("🤖  ", style="green")
     assistant_text.append(response_text.strip())
     console.print(assistant_text)
 
