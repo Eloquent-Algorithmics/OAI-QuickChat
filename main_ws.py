@@ -206,9 +206,7 @@ def recognize_speech(timeout=20):
             return None
 
     try:
-        recognized_speech = recognizer.recognize_google(audio)
-        console.print(f"Recognized speech: {recognized_speech}")
-        return recognized_speech
+        return recognizer.recognize_google(audio)
     except sr.UnknownValueError:
         console.print("Could not understand audio")
         return None
