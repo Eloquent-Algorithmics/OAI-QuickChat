@@ -7,8 +7,9 @@ import base64
 import shutil
 import subprocess
 import signal
+import time
 import asyncio
-import speech_recognition as sr  # type: ignore
+import azure.cognitiveservices.speech as speechsdk
 from openai import AsyncAzureOpenAI
 from rich.console import Console
 from rich.text import Text
@@ -19,6 +20,8 @@ from config_ws import (
     AZURE_OPENAI_KEY,
     AZURE_API_VERSION,
     AZURE_OPENAI_MODEL,
+    AZURE_AI_SERVICES_KEY,
+    AZURE_AI_SERVICES_REGION,
     ELEVENLABS_API_KEY,
     ELEVENLABS_VOICE_ID,
 )
@@ -35,15 +38,6 @@ voice_id = ELEVENLABS_VOICE_ID
 
 
 def is_installed(lib_name):
-    """
-    Check if a library is installed.
-
-    Args:
-        lib_name (str): The name of the library to check.
-
-    Returns:
-        bool: True if the library is installed, False otherwise.
-    """
     return shutil.which(lib_name) is not None
 
 
@@ -186,33 +180,35 @@ async def generate_and_play_response(user_input, conversation_history):
     console.print(assistant_text)
 
 
-def recognize_speech(timeout=20):
-    """
-    Recognizes speech from the user using the microphone.
+def recognize_speech():
+    speech_key, service_region = AZURE_AI_SERVICES_KEY, AZURE_AI_SERVICES_REGION
+    speech_config = speechsdk.SpeechConfig(
+        subscription=speech_key,
+        region=service_region
+    )
 
-    Args:
-        timeout (int): The maximum number of seconds to wait for speech input.
+    # Creates a recognizer with the given settings
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
 
-    Returns:
-        str or None: The recognized speech as a string if successful.
-    """
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        console.print("Listening...\n")
-        try:
-            audio = recognizer.listen(source, timeout=timeout)
-        except sr.WaitTimeoutError:
-            console.print("Timeout reached, please try again.")
-            return None
+    recognized_text = None
 
+    def handle_final_result(evt):
+        nonlocal recognized_text
+        recognized_text = evt.result.text
+
+    speech_recognizer.recognized.connect(handle_final_result)
+
+    console.print("I'm listening ... \n")
     try:
-        return recognizer.recognize_google(audio)
-    except sr.UnknownValueError:
-        console.print("Could not understand audio")
-        return None
-    except sr.RequestError as e:
-        console.print(f"Could not request results; {e}")
-        return None
+        speech_recognizer.start_continuous_recognition()
+        while recognized_text is None:
+            time.sleep(0.5)
+        speech_recognizer.stop_continuous_recognition()
+    except Exception as e:
+        console.print(f"Error: {e}")
+        return
+
+    return recognized_text
 
 
 async def main(use_voice=False):
