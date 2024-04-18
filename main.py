@@ -2,7 +2,7 @@
 This script uses the OpenAI API and ElevenLab's REST API
 """
 import sys
-import speech_recognition as sr  # type: ignore
+import speech_recognition as sr
 from openai import OpenAI
 from elevenlabs import stream
 from elevenlabs.client import ElevenLabs, Voice, VoiceSettings
