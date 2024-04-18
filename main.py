@@ -4,6 +4,18 @@ This script uses the OpenAI API and ElevenLab's REST API
 import sys
 import speech_recognition as sr
 from openai import OpenAI
+from openai._exceptions import (
+    BadRequestError,
+    AuthenticationError,
+    PermissionDeniedError,
+    NotFoundError,
+    ConflictError,
+    UnprocessableEntityError,
+    RateLimitError,
+    InternalServerError,
+    APIConnectionError,
+    APITimeoutError
+)
 from elevenlabs import stream
 from elevenlabs.client import ElevenLabs, Voice, VoiceSettings
 from rich.console import Console
@@ -45,50 +57,66 @@ def generate_and_play_response(user_input, conversation_history):
     """
     conversation_history.append({"role": "user", "content": user_input})
 
-    completion = oai_client.chat.completions.create(
-        model=OPENAI_MODEL,
-        messages=conversation_history,
-        temperature=0.5,
-        top_p=0.95,
-        max_tokens=128,
-        frequency_penalty=0.5,
-        presence_penalty=0.5,
-        stream=True,
-    )
+    try:
+        completion = oai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=conversation_history,
+            temperature=0.5,
+            top_p=0.95,
+            max_tokens=128,
+            frequency_penalty=0.5,
+            presence_penalty=0.5,
+            stream=True,
+        )
 
-    response_text = ""
-    for chunk in list(completion):
-        if chunk.choices[0].delta.content is not None:
-            response_text += chunk.choices[0].delta.content
+        response_text = ""
+        for chunk in list(completion):
+            if chunk.choices[0].delta.content is not None:
+                response_text += chunk.choices[0].delta.content
 
-    conversation_history.append(
-        {"role": "assistant", "content": response_text.strip()}
-    )
+        conversation_history.append(
+            {"role": "assistant", "content": response_text.strip()}
+        )
 
-    assistant_text = Text("🤖  ", style="green")
-    assistant_text.append(response_text.strip())
-    console.print(assistant_text)
+        assistant_text = Text("🤖  ", style="green")
+        assistant_text.append(response_text.strip())
+        console.print(assistant_text)
 
-    def text_stream():
-        yield response_text
+        def text_stream():
+            yield response_text
 
-    audio_stream = e_client.generate(
-        text=text_stream(),
-        voice=Voice(
-            voice_id=ELEVENLABS_VOICE_ID,
-            settings=VoiceSettings(
-                stability=0.5,
-                similarity_boost=0.0,
-                style=0.0,
-                use_speaker_boost=True,
-                optimize_streaming_latency=4,
+        audio_stream = e_client.generate(
+            text=text_stream(),
+            voice=Voice(
+                voice_id=voice_ident,
+                settings=VoiceSettings(
+                    stability=0.5,
+                    similarity_boost=0.0,
+                    style=0.0,
+                    use_speaker_boost=True,
+                    optimize_streaming_latency=4,
+                ),
             ),
-        ),
-        model="eleven_turbo_v2",
-        stream=True,
-    )
+            model="eleven_turbo_v2",
+            stream=True,
+        )
 
-    stream(audio_stream)
+        stream(audio_stream)
+
+    except ConflictError:
+        console.print("A conflict occurred. The operation could not be completed due to an existing resource.")
+    except (BadRequestError, UnprocessableEntityError) as e:
+        console.print(f"Invalid request: {e}")
+    except AuthenticationError:
+        console.print("Authentication error: Please check your API key.")
+    except PermissionDeniedError:
+        console.print("Permission denied: Check your access rights.")
+    except NotFoundError:
+        console.print("Resource not found.")
+    except RateLimitError:
+        console.print("Rate limit exceeded: Try again later.")
+    except (InternalServerError, APIConnectionError, APITimeoutError) as e:
+        console.print(f"Server or connection error: {e}")
 
 
 def recognize_speech(timeout=20):
