@@ -1,4 +1,4 @@
-# AI Assistant with Text-to-Speech
+# AI Assistant with fast Speech-to-Speech
 
 This project is a Text or Voice Input AI Assistant that uses the OpenAI API to generate responses and the ElevenLabs Text-to-Speech API to convert the responses into audio quickly.
 
