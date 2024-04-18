@@ -143,39 +143,39 @@ async def text_to_speech_input_streaming(text_iterator):
             )
         )
 
-    async def listen():
-        """
-        Listens for messages from a websocket connection.
+        async def listen():
+            """
+            Listens for messages from a websocket connection.
 
-        Yields:
-            bytes: Decoded audio data received from the websocket.
+            Yields:
+                bytes: Decoded audio data received from the websocket.
 
-        Raises:
-            websockets.exceptions.ConnectionClosed:
-            If the websocket connection is closed unexpectedly.
-        """
-        while True:
-            try:
-                message = await websocket.recv()
-                data = json.loads(message)
-                if data.get("audio"):
-                    yield base64.b64decode(data["audio"])
-                elif data.get("isFinal"):
+            Raises:
+                websockets.exceptions.ConnectionClosed:
+                If the websocket connection is closed unexpectedly.
+            """
+            while True:
+                try:
+                    message = await websocket.recv()
+                    data = json.loads(message)
+                    if data.get("audio"):
+                        yield base64.b64decode(data["audio"])
+                    elif data.get("isFinal"):
+                        break
+                except websockets.exceptions.ConnectionClosed:
+                    print("Connection closed")
                     break
-            except websockets.exceptions.ConnectionClosed:
-                print("Connection closed")
-                break
 
-            listen_task = asyncio.create_task(stream(listen()))
+                listen_task = asyncio.create_task(stream(listen()))
 
-            async for text in text_chunker(text_iterator):
-                await websocket.send(
-                    json.dumps({"text": text, "try_trigger_generation": True})
-                )
+                async for text in text_chunker(text_iterator):
+                    await websocket.send(
+                        json.dumps({"text": text, "try_trigger_generation": True})
+                    )
 
-            await websocket.send(json.dumps({"text": ""}))
+                await websocket.send(json.dumps({"text": ""}))
 
-            await listen_task
+                await listen_task
 
 
 async def generate_and_play_response(user_input, conversation_history):
@@ -213,7 +213,7 @@ async def generate_and_play_response(user_input, conversation_history):
                 if content:
                     content_list.append(content)
                     yield content
-    print(content_list)
+
     await text_to_speech_input_streaming(text_iterator())
 
     response_text = "".join(content_list)
