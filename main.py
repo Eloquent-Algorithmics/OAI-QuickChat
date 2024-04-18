@@ -11,6 +11,7 @@ from rich.text import Text
 from config import (
     OPENAI_API_KEY,
     OPENAI_ORG_ID,
+    OPENAI_PROJECT_ID,
     OPENAI_MODEL,
     OPENAI_SYSTEM_PROMPT,
     ELEVENLABS_API_KEY,
@@ -19,7 +20,11 @@ from config import (
 
 console = Console()
 
-oai_client = OpenAI(api_key=OPENAI_API_KEY, organization=OPENAI_ORG_ID)
+oai_client = OpenAI(
+    api_key=OPENAI_API_KEY,
+    organization=OPENAI_ORG_ID,
+    project=OPENAI_PROJECT_ID,
+)
 e_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 voice_ident = ELEVENLABS_VOICE_ID
 
@@ -43,10 +48,10 @@ def generate_and_play_response(user_input, conversation_history):
     completion = oai_client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=conversation_history,
-        temperature=1,
-        top_p=1,
+        temperature=0.5,
+        top_p=0.95,
         max_tokens=128,
-        frequency_penalty=1,
+        frequency_penalty=0.5,
         presence_penalty=0.5,
         stream=True,
     )

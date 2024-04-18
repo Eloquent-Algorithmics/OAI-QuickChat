@@ -20,6 +20,10 @@ OPENAI_ORG_ID = os.getenv("OPENAI_ORG_ID")
 if OPENAI_ORG_ID is None:
     raise ValueError("OPENAI_ORG_ID not set")
 
+OPENAI_PROJECT_ID = os.getenv("OPENAI_PROJECT_ID")
+if OPENAI_PROJECT_ID is None:
+    raise ValueError("OPENAI_PROJECT_ID not set")
+
 OPENAI_MODEL = os.getenv("OPENAI_MODEL")
 if OPENAI_MODEL is None:
     raise ValueError("OPENAI_MODEL not set")

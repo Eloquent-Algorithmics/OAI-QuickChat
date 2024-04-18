@@ -1,30 +1,26 @@
 """
 This script uses the AzureOpenAI Service and ElevenLabs websockets
 """
-import sys
-import json
-import base64
-import shutil
-import subprocess
-import signal
-import time
 import asyncio
+import base64
+import json
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
 import azure.cognitiveservices.speech as speechsdk
+import websockets
 from openai import AsyncAzureOpenAI
 from rich.console import Console
 from rich.text import Text
-import websockets
-from config_ws import (
-    AZURE_SYSTEM_PROMPT,
-    AZURE_OPENAI_ENDPOINT,
-    AZURE_OPENAI_KEY,
-    AZURE_API_VERSION,
-    AZURE_OPENAI_MODEL,
-    AZURE_AI_SERVICES_KEY,
-    AZURE_AI_SERVICES_REGION,
-    ELEVENLABS_API_KEY,
-    ELEVENLABS_VOICE_ID,
-)
+
+from config_ws import (AZUREAI_API_KEY, AZUREAI_REGION,
+                       AZURE_API_VERSION, AZURE_OPENAI_ENDPOINT,
+                       AZURE_OPENAI_KEY, AZURE_OPENAI_MODEL,
+                       AZURE_SYSTEM_PROMPT, ELEVENLABS_API_KEY,
+                       ELEVENLABS_VOICE_ID)
 
 console = Console()
 
@@ -38,11 +34,29 @@ voice_id = ELEVENLABS_VOICE_ID
 
 
 def is_installed(lib_name):
+    """
+    Check if a library is installed.
+
+    Args:
+        lib_name (str): The name of the library to check.
+
+    Returns:
+        bool: True if the library is installed, False otherwise.
+    """
     return shutil.which(lib_name) is not None
 
 
 async def text_chunker(chunks):
-    """Split text into chunks, ensuring to not break sentences."""
+    """
+    Asynchronously chunks text based on specified splitters.
+
+    Args:
+        chunks: An asynchronous generator that yields text chunks.
+
+    Yields:
+        str: The chunked text.
+
+    """
     splitters = (
         ".", ",", "?", "!", ";", ":", "—", "-",
         "(", ")", "[", "]", "}", " "
@@ -64,7 +78,16 @@ async def text_chunker(chunks):
 
 
 async def stream(audio_stream):
-    """Stream audio data using mpv player."""
+    """
+    Stream audio data using the mpv player.
+
+    Args:
+        audio_stream: An asynchronous generator that yields audio chunks.
+
+    Raises:
+        ValueError: If mpv is not installed on the system.
+
+    """
     if not is_installed("mpv"):
         raise ValueError(
             "mpv not found, necessary to stream audio. "
@@ -89,8 +112,25 @@ async def stream(audio_stream):
 
 
 async def text_to_speech_input_streaming(text_iterator):
-    """Send text to ElevenLabs API and stream the returned audio."""
-    uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
+    """
+    Sends text chunks to a WebSocket server for TTS conversion
+    and receives audio chunks in response.
+
+    Args:
+        text_iterator (iterator): Yields text chunks to be converted to speech.
+
+    Returns:
+        None
+
+    Raises:
+        websockets.exceptions.ConnectionClosed: If the WebSocket connection is closed
+            unexpectedly.
+    """
+
+    uri = (
+        f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input"
+        "?model_id=eleven_turbo_v2"
+    )
 
     async with websockets.connect(uri) as websocket:
         await websocket.send(
@@ -106,30 +146,39 @@ async def text_to_speech_input_streaming(text_iterator):
             )
         )
 
-        async def listen():
-            """Listen to the websocket for audio data and stream it."""
-            while True:
-                try:
-                    message = await websocket.recv()
-                    data = json.loads(message)
-                    if data.get("audio"):
-                        yield base64.b64decode(data["audio"])
-                    elif data.get("isFinal"):
-                        break
-                except websockets.exceptions.ConnectionClosed:
-                    print("Connection closed")
+    async def listen():
+        """
+        Listens for messages from a websocket connection.
+
+        Yields:
+            bytes: Decoded audio data received from the websocket.
+
+        Raises:
+            websockets.exceptions.ConnectionClosed:
+            If the websocket connection is closed unexpectedly.
+        """
+        while True:
+            try:
+                message = await websocket.recv()
+                data = json.loads(message)
+                if data.get("audio"):
+                    yield base64.b64decode(data["audio"])
+                elif data.get("isFinal"):
                     break
+            except websockets.exceptions.ConnectionClosed:
+                print("Connection closed")
+                break
 
-        listen_task = asyncio.create_task(stream(listen()))
+            listen_task = asyncio.create_task(stream(listen()))
 
-        async for text in text_chunker(text_iterator):
-            await websocket.send(
-                json.dumps({"text": text, "try_trigger_generation": True})
-            )
+            async for text in text_chunker(text_iterator):
+                await websocket.send(
+                    json.dumps({"text": text, "try_trigger_generation": True})
+                )
 
-        await websocket.send(json.dumps({"text": ""}))
+            await websocket.send(json.dumps({"text": ""}))
 
-        await listen_task
+            await listen_task
 
 
 async def generate_and_play_response(user_input, conversation_history):
@@ -149,9 +198,9 @@ async def generate_and_play_response(user_input, conversation_history):
     response = await az_oai_client.chat.completions.create(
         model=AZURE_OPENAI_MODEL,
         messages=conversation_history,
-        temperature=1,
+        temperature=0.5,
         top_p=1,
-        max_tokens=128,
+        max_tokens=256,
         frequency_penalty=1,
         presence_penalty=0.5,
         stream=True,
@@ -181,13 +230,18 @@ async def generate_and_play_response(user_input, conversation_history):
 
 
 def recognize_speech():
-    speech_key, service_region = AZURE_AI_SERVICES_KEY, AZURE_AI_SERVICES_REGION
+    """
+    Recognizes speech using Azure Cognitive Services Speech-to-Text API.
+
+    Returns:
+        str: The recognized text from the speech input.
+    """
+    speech_key, service_region = AZUREAI_API_KEY, AZUREAI_REGION
     speech_config = speechsdk.SpeechConfig(
         subscription=speech_key,
         region=service_region
     )
 
-    # Creates a recognizer with the given settings
     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
 
     recognized_text = None

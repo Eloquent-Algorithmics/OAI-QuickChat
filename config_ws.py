@@ -32,6 +32,14 @@ AZURE_OPENAI_MODEL = os.getenv("AZURE_OPENAI_MODEL")
 if AZURE_OPENAI_MODEL is None:
     raise ValueError("AZURE_OPENAI_MODEL not set")
 
+AZUREAI_API_KEY = os.getenv("AZUREAI_API_KEY")
+if AZUREAI_API_KEY is None:
+    raise ValueError("AZUREAI_API_KEY not set")
+
+AZUREAI_REGION = os.getenv("AZUREAI_REGION")
+if AZUREAI_REGION is None:
+    raise ValueError("AZUREAI_REGION not set")
+
 ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY")
 if ELEVENLABS_API_KEY is None:
     raise ValueError("ELEVENLABS_API_KEY not set")
@@ -39,11 +47,3 @@ if ELEVENLABS_API_KEY is None:
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
 if ELEVENLABS_VOICE_ID is None:
     raise ValueError("ELEVENLABS_VOICE_ID not set")
-
-AZURE_AI_SERVICES_KEY = os.getenv("AZURE_AI_SERVICES_KEY")
-if AZURE_AI_SERVICES_KEY is None:
-    raise ValueError("AZURE_AI_SERVICES_KEY not set")
-
-AZURE_AI_SERVICES_REGION = os.getenv("AZURE_AI_SERVICES_REGION")
-if AZURE_AI_SERVICES_REGION is None:
-    raise ValueError("AZURE_AI_SERVICES_REGION not set")
