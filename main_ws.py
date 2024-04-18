@@ -166,16 +166,16 @@ async def text_to_speech_input_streaming(text_iterator):
                     print("Connection closed")
                     break
 
-            listen_task = asyncio.create_task(stream(listen()))
+        listen_task = asyncio.create_task(stream(listen()))
 
-            async for text in text_chunker(text_iterator):
-                await websocket.send(
-                    json.dumps({"text": text, "try_trigger_generation": True})
-                )
+        async for text in text_chunker(text_iterator):
+            await websocket.send(
+                json.dumps({"text": text, "try_trigger_generation": True})
+            )
 
-            await websocket.send(json.dumps({"text": ""}))
+        await websocket.send(json.dumps({"text": ""}))
 
-            await listen_task
+        await listen_task
 
 
 async def generate_and_play_response(user_input, conversation_history):
