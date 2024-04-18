@@ -56,19 +56,19 @@ cp .env.template .env
 
 - Run the AI Assistant:
 
-    ```python main.py --voice``` to talk to the assistant.
+```python main.py``` to type your requests in the terminal.
 
-    ```python main.py``` to type your requests in the terminal.
-<br>
-<br>
+```python main.py --voice``` to talk to the assistant.
 
-- To run the AzureOpenAI websockets version of the assistant:
+- Use the following if you have access to AzureOpenAI and Elevenlabs websockets version of the assistant:
 
-    ```python main_ws.py``` to type your requests in the terminal.
+```python main_ws.py``` to type your requests in the terminal.
 
-    ```python main_ws.py --voice``` to talk to the assistant.
-<br>
-<br>
+```python main_ws.py --voice``` to talk to the assistant.
+
+- Enter your question or command when prompted.
+
+- The AI Assistant will generate a response and play it as audio.
 
 - To exit the AI Assistant, press `CTRL+C`.
 
