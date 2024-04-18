@@ -10,12 +10,24 @@ This project is a Text or Voice Input AI Assistant that uses the OpenAI API to g
 - Powered by OpenAI and ElevenLabs
 - **Paid ElevenLabs subscription required**
 
+# Getting Started
+
+### Prerequisites
+
+- Ensure you have [Miniconda](https://docs.anaconda.com/free/miniconda/#latest-miniconda-installer-links) installed on your system.
+
+- Get your [OpenAI API Key](https://platform.openai.com/api-keys)
+
+- Get your [ElevenLabs API Key](https://elevenlabs.io/app/subscription)
+
+- To run ```main_ws.py``` you will need a [Azure](https://portal.azure.com/) OpenAI Deployment and Speech Service Resource
+
 ## Installation
 
-1. Clone the repository:
+1. Fork and clone the repository:
 
 ```bash
-git clone https://github.com/Explorergt92/OAI-QuickChat.git
+git clone https://github.com/<username>/OAI-QuickChat.git
 
 cd OAI-QuickChat
 ```
@@ -44,25 +56,27 @@ cp .env.template .env
 
 - Run the AI Assistant:
 
-```python main.py``` to type your requests in the terminal.
+    ```python main.py --voice``` to talk to the assistant.
 
-```python main.py --voice``` to talk to the assistant.
+    ```python main.py``` to type your requests in the terminal.
+<br>
+<br>
 
-- Use the following to use the AzureOpenAI websockets version of the assistant:
+- To run the AzureOpenAI websockets version of the assistant:
 
-```python main_ws.py``` to type your requests in the terminal.
+    ```python main_ws.py``` to type your requests in the terminal.
 
-```python main_ws.py --voice``` to talk to the assistant.
-
-- Enter your question or command when prompted.
-
-- The AI Assistant will generate a response and play it as audio.
+    ```python main_ws.py --voice``` to talk to the assistant.
+<br>
+<br>
 
 - To exit the AI Assistant, press `CTRL+C`.
 
 ## Customization
 
-You can customize the voice used by the AI Assistant by changing the `ELEVENLABS_VOICE_ID` in the `.env` file. Available voice IDs are listed in the `.env.template` file.
+You can customize the voice used by the AI Assistant by changing the `ELEVENLABS_VOICE_ID` in the `.env` file.
+
+A link to the pre-made voices is in the `.env.template` file.
 
 ## License
 
@@ -82,4 +96,4 @@ If you encounter any issues or have questions, please open an issue on GitHub.
 ## Acknowledgements
 
 - [OpenAI](https://www.openai.com/)
-- [ElevenLabs](https://www.elevenlabs.ai/)
+- [ElevenLabs](https://www.elevenlabs.io/)
