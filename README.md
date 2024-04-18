@@ -12,10 +12,10 @@ This project is a Text or Voice Input AI Assistant that uses the OpenAI API to g
 
 ## Installation
 
-1. Clone the repository:
+1. Fork and clone the repository:
 
 ```bash
-git clone https://github.com/Explorergt92/OAI-QuickChat.git
+git clone https://github.com/<username>/OAI-QuickChat.git
 
 cd OAI-QuickChat
 ```
@@ -48,7 +48,7 @@ cp .env.template .env
 
 ```python main.py --voice``` to talk to the assistant.
 
-- Use the following to use the AzureOpenAI websockets version of the assistant:
+- Use the following if you have access to AzureOpenAI and Elevenlabs websockets version of the assistant:
 
 ```python main_ws.py``` to type your requests in the terminal.
 
