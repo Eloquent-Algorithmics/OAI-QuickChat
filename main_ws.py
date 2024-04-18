@@ -139,6 +139,7 @@ async def text_to_speech_input_streaming(text_iterator):
                         "similarity_boost": 0.8
                     },
                     "xi_api_key": ELEVENLABS_API_KEY,
+                    "optimize_streaming_latency": True,
                 }
             )
         )
