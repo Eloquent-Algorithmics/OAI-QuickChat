@@ -127,10 +127,7 @@ async def text_to_speech_input_streaming(text_iterator):
             unexpectedly.
     """
 
-    uri = (
-        f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input"
-        "?model_id=eleven_turbo_v2"
-    )
+    uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
 
     async with websockets.connect(uri) as websocket:
         await websocket.send(
@@ -216,7 +213,7 @@ async def generate_and_play_response(user_input, conversation_history):
                 if content:
                     content_list.append(content)
                     yield content
-
+    print(content_list)
     await text_to_speech_input_streaming(text_iterator())
 
     response_text = "".join(content_list)
