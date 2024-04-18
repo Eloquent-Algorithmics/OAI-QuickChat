@@ -1,7 +1,8 @@
-elevenlabs>=1.0.5
-openai>=1.17.1
-PyAudio>=0.2.14
+azure-cognitiveservices-speech==1.37.0
+elevenlabs==1.1.2
+openai==1.21.2
+PyAudio==0.2.14
+python-dotenv>=1.0.1
 rich>=13.7.1
-setuptools>=69.5.1
-SpeechRecognition>=3.10.3
-azure-cognitiveservices-speech>=1.37.0
+setuptools==69.5.1
+SpeechRecognition==3.10.3

@@ -1,27 +1,26 @@
 """
 This script uses the AzureOpenAI Service and ElevenLabs websockets
 """
-import sys
-import json
-import base64
-import shutil
-import subprocess
-import signal
 import asyncio
-import speech_recognition as sr  # type: ignore
+import base64
+import json
+import shutil
+import signal
+import subprocess
+import sys
+import time
+
+import azure.cognitiveservices.speech as speechsdk
+import websockets
 from openai import AsyncAzureOpenAI
 from rich.console import Console
 from rich.text import Text
-import websockets
-from config_ws import (
-    AZURE_SYSTEM_PROMPT,
-    AZURE_OPENAI_ENDPOINT,
-    AZURE_OPENAI_KEY,
-    AZURE_API_VERSION,
-    AZURE_OPENAI_MODEL,
-    ELEVENLABS_API_KEY,
-    ELEVENLABS_VOICE_ID,
-)
+
+from config_ws import (AZUREAI_API_KEY, AZUREAI_REGION,
+                       AZURE_API_VERSION, AZURE_OPENAI_ENDPOINT,
+                       AZURE_OPENAI_KEY, AZURE_OPENAI_MODEL,
+                       AZURE_SYSTEM_PROMPT, ELEVENLABS_API_KEY,
+                       ELEVENLABS_VOICE_ID)
 
 console = Console()
 
@@ -48,7 +47,16 @@ def is_installed(lib_name):
 
 
 async def text_chunker(chunks):
-    """Split text into chunks, ensuring to not break sentences."""
+    """
+    Asynchronously chunks text based on specified splitters.
+
+    Args:
+        chunks: An asynchronous generator that yields text chunks.
+
+    Yields:
+        str: The chunked text.
+
+    """
     splitters = (
         ".", ",", "?", "!", ";", ":", "—", "-",
         "(", ")", "[", "]", "}", " "
@@ -70,7 +78,16 @@ async def text_chunker(chunks):
 
 
 async def stream(audio_stream):
-    """Stream audio data using mpv player."""
+    """
+    Stream audio data using the mpv player.
+
+    Args:
+        audio_stream: An asynchronous generator that yields audio chunks.
+
+    Raises:
+        ValueError: If mpv is not installed on the system.
+
+    """
     if not is_installed("mpv"):
         raise ValueError(
             "mpv not found, necessary to stream audio. "
@@ -95,7 +112,21 @@ async def stream(audio_stream):
 
 
 async def text_to_speech_input_streaming(text_iterator):
-    """Send text to ElevenLabs API and stream the returned audio."""
+    """
+    Sends text chunks to a WebSocket server for TTS conversion
+    and receives audio chunks in response.
+
+    Args:
+        text_iterator (iterator): Yields text chunks to be converted to speech.
+
+    Returns:
+        None
+
+    Raises:
+        websockets.exceptions.ConnectionClosed: If the WebSocket connection is closed
+            unexpectedly.
+    """
+
     uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
 
     async with websockets.connect(uri) as websocket:
@@ -113,7 +144,16 @@ async def text_to_speech_input_streaming(text_iterator):
         )
 
         async def listen():
-            """Listen to the websocket for audio data and stream it."""
+            """
+            Listens for messages from a websocket connection.
+
+            Yields:
+                bytes: Decoded audio data received from the websocket.
+
+            Raises:
+                websockets.exceptions.ConnectionClosed:
+                If the websocket connection is closed unexpectedly.
+            """
             while True:
                 try:
                     message = await websocket.recv()
@@ -155,9 +195,9 @@ async def generate_and_play_response(user_input, conversation_history):
     response = await az_oai_client.chat.completions.create(
         model=AZURE_OPENAI_MODEL,
         messages=conversation_history,
-        temperature=1,
+        temperature=0.5,
         top_p=1,
-        max_tokens=128,
+        max_tokens=256,
         frequency_penalty=1,
         presence_penalty=0.5,
         stream=True,
@@ -186,33 +226,40 @@ async def generate_and_play_response(user_input, conversation_history):
     console.print(assistant_text)
 
 
-def recognize_speech(timeout=20):
+def recognize_speech():
     """
-    Recognizes speech from the user using the microphone.
-
-    Args:
-        timeout (int): The maximum number of seconds to wait for speech input.
+    Recognizes speech using Azure Cognitive Services Speech-to-Text API.
 
     Returns:
-        str or None: The recognized speech as a string if successful.
+        str: The recognized text from the speech input.
     """
-    recognizer = sr.Recognizer()
-    with sr.Microphone() as source:
-        console.print("Listening...\n")
-        try:
-            audio = recognizer.listen(source, timeout=timeout)
-        except sr.WaitTimeoutError:
-            console.print("Timeout reached, please try again.")
-            return None
+    speech_key, service_region = AZUREAI_API_KEY, AZUREAI_REGION
+    speech_config = speechsdk.SpeechConfig(
+        subscription=speech_key,
+        region=service_region
+    )
 
+    speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
+
+    recognized_text = None
+
+    def handle_final_result(evt):
+        nonlocal recognized_text
+        recognized_text = evt.result.text
+
+    speech_recognizer.recognized.connect(handle_final_result)
+
+    console.print("I'm listening ... \n")
     try:
-        return recognizer.recognize_google(audio)
-    except sr.UnknownValueError:
-        console.print("Could not understand audio")
-        return None
-    except sr.RequestError as e:
-        console.print(f"Could not request results; {e}")
-        return None
+        speech_recognizer.start_continuous_recognition()
+        while recognized_text is None:
+            time.sleep(0.5)
+        speech_recognizer.stop_continuous_recognition()
+    except Exception as e:
+        console.print(f"Error: {e}")
+        return
+
+    return recognized_text
 
 
 async def main(use_voice=False):
