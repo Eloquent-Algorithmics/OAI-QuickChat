@@ -4,7 +4,7 @@ This project is a Text or Voice Input AI Assistant that uses the OpenAI API to g
 
 ## Features
 
-- Real-time speach-to-speech conversation
+- Real-time speech-to-speech conversation
 - Customizable voice selection
 - Easy-to-use command-line interface
 - Powered by OpenAI and ElevenLabs
