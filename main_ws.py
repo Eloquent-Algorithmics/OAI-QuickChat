@@ -111,28 +111,20 @@ async def stream(audio_stream):
     mpv_process.wait()
 
 
-async def text_to_speech_input_streaming(text_iterator):
+persistent_websocket = None
+
+
+async def get_persistent_websocket():
     """
-    Sends text chunks to a WebSocket server for TTS conversion
-    and receives audio chunks in response.
-
-    Args:
-        text_iterator (iterator): Yields text chunks to be converted to speech.
-
-    Returns:
-        None
-
-    Raises:
-        websockets.exceptions.ConnectionClosed: If the WebSocket connection is closed
-            unexpectedly.
+    Returns a persistent WebSocket connection, reconnecting if necessary.
     """
-
-    uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
-
-    async with websockets.connect(uri) as websocket:
-        await websocket.send(
-            json.dumps(
-                {
+    global persistent_websocket
+    try:
+        if persistent_websocket is None or persistent_websocket.closed:
+            uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
+            persistent_websocket = await websockets.connect(uri)
+            await persistent_websocket.send(
+                json.dumps({
                     "text": " ",
                     "voice_settings": {
                         "stability": 0.5,
@@ -140,43 +132,42 @@ async def text_to_speech_input_streaming(text_iterator):
                     },
                     "xi_api_key": ELEVENLABS_API_KEY,
                     "optimize_streaming_latency": True,
-                }
+                })
             )
-        )
+    except websockets.exceptions.WebSocketException as e:
+        console.print(f"WebSocket error: {e}")
+        persistent_websocket = None
+        return await get_persistent_websocket()
+    return persistent_websocket
 
-        async def listen():
-            """
-            Listens for messages from a websocket connection.
 
-            Yields:
-                bytes: Decoded audio data received from the websocket.
+async def text_to_speech_input_streaming(text_iterator):
+    """
+    Sends text chunks to a WebSocket server for TTS conversion
+    and receives audio chunks in response using a persistent connection.
+    """
+    websocket = await get_persistent_websocket()
 
-            Raises:
-                websockets.exceptions.ConnectionClosed:
-                If the websocket connection is closed unexpectedly.
-            """
-            while True:
-                try:
-                    message = await websocket.recv()
-                    data = json.loads(message)
-                    if data.get("audio"):
-                        yield base64.b64decode(data["audio"])
-                    elif data.get("isFinal"):
-                        break
-                except websockets.exceptions.ConnectionClosed:
-                    print("Connection closed")
+    async def listen():
+        while True:
+            try:
+                message = await websocket.recv()
+                data = json.loads(message)
+                if data.get("audio"):
+                    yield base64.b64decode(data["audio"])
+                elif data.get("isFinal"):
                     break
+            except websockets.exceptions.ConnectionClosed:
+                print("Connection closed")
+                break
 
-        listen_task = asyncio.create_task(stream(listen()))
+    listen_task = asyncio.create_task(stream(listen()))
 
-        async for text in text_chunker(text_iterator):
-            await websocket.send(
-                json.dumps({"text": text, "try_trigger_generation": True})
-            )
+    async for text in text_chunker(text_iterator):
+        await websocket.send(json.dumps({"text": text, "try_trigger_generation": True}))
 
-        await websocket.send(json.dumps({"text": ""}))
-
-        await listen_task
+    await websocket.send(json.dumps({"text": ""}))
+    await listen_task
 
 
 async def generate_and_play_response(user_input, conversation_history):
