@@ -47,3 +47,7 @@ if ELEVENLABS_API_KEY is None:
 ELEVENLABS_VOICE_ID = os.getenv("ELEVENLABS_VOICE_ID")
 if ELEVENLABS_VOICE_ID is None:
     raise ValueError("ELEVENLABS_VOICE_ID not set")
+
+CONVERSATION_MODE = os.getenv("CONVERSATION_MODE")
+if CONVERSATION_MODE is None:
+    raise ValueError("CONVERSATION_MODE not set")

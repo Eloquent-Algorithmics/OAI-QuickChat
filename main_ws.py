@@ -1,6 +1,7 @@
 """
 This script uses the AzureOpenAI Service and ElevenLabs websockets
 """
+
 import asyncio
 import base64
 import json
@@ -15,12 +16,23 @@ import websockets
 from openai import AsyncAzureOpenAI
 from rich.console import Console
 from rich.text import Text
-
-from config_ws import (AZUREAI_API_KEY, AZUREAI_REGION,
-                       AZURE_API_VERSION, AZURE_OPENAI_ENDPOINT,
-                       AZURE_OPENAI_KEY, AZURE_OPENAI_MODEL,
-                       AZURE_SYSTEM_PROMPT, ELEVENLABS_API_KEY,
-                       ELEVENLABS_VOICE_ID)
+from utils.conversation import (
+    load_conversation_history,
+    save_conversation_history,
+    summarize_conversation_history_direct,
+)
+from config_ws import (
+    AZUREAI_API_KEY,
+    AZUREAI_REGION,
+    AZURE_API_VERSION,
+    AZURE_OPENAI_ENDPOINT,
+    AZURE_OPENAI_KEY,
+    AZURE_OPENAI_MODEL,
+    AZURE_SYSTEM_PROMPT,
+    ELEVENLABS_API_KEY,
+    ELEVENLABS_VOICE_ID,
+    CONVERSATION_MODE,
+)
 
 console = Console()
 
@@ -57,10 +69,7 @@ async def text_chunker(chunks):
         str: The chunked text.
 
     """
-    splitters = (
-        ".", ",", "?", "!", ";", ":", "—", "-",
-        "(", ")", "[", "]", "}", " "
-    )
+    splitters = (".", ",", "?", "!", ";", ":", "—", "-", "(", ")", "[", "]", "}", " ")
     buffer = ""
 
     async for text in chunks:
@@ -111,63 +120,68 @@ async def stream(audio_stream):
     mpv_process.wait()
 
 
-persistent_websocket = None
-
-
-async def get_persistent_websocket():
-    """
-    Returns a persistent WebSocket connection, reconnecting if necessary.
-    """
-    global persistent_websocket
-    try:
-        if persistent_websocket is None or persistent_websocket.closed:
-            uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
-            persistent_websocket = await websockets.connect(uri)
-            await persistent_websocket.send(
-                json.dumps({
-                    "text": " ",
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.8
-                    },
-                    "xi_api_key": ELEVENLABS_API_KEY,
-                    "optimize_streaming_latency": True,
-                })
-            )
-    except websockets.exceptions.WebSocketException as e:
-        console.print(f"WebSocket error: {e}")
-        persistent_websocket = None
-        return await get_persistent_websocket()
-    return persistent_websocket
-
-
 async def text_to_speech_input_streaming(text_iterator):
     """
     Sends text chunks to a WebSocket server for TTS conversion
-    and receives audio chunks in response using a persistent connection.
+    and receives audio chunks in response.
+
+    Args:
+        text_iterator (iterator): Yields text chunks to be converted to speech.
+
+    Returns:
+        None
+
+    Raises:
+        websockets.exceptions.ConnectionClosed: If the WebSocket connection is closed
+            unexpectedly.
     """
-    websocket = await get_persistent_websocket()
 
-    async def listen():
-        while True:
-            try:
-                message = await websocket.recv()
-                data = json.loads(message)
-                if data.get("audio"):
-                    yield base64.b64decode(data["audio"])
-                elif data.get("isFinal"):
+    uri = f"wss://api.elevenlabs.io/v1/text-to-speech/{voice_id}/stream-input?model_id=eleven_turbo_v2"
+
+    async with websockets.connect(uri) as websocket:
+        await websocket.send(
+            json.dumps(
+                {
+                    "text": " ",
+                    "voice_settings": {"stability": 0.5, "similarity_boost": 0.8},
+                    "xi_api_key": ELEVENLABS_API_KEY,
+                }
+            )
+        )
+
+        async def listen():
+            """
+            Listens for messages from a websocket connection.
+
+            Yields:
+                bytes: Decoded audio data received from the websocket.
+
+            Raises:
+                websockets.exceptions.ConnectionClosed:
+                If the websocket connection is closed unexpectedly.
+            """
+            while True:
+                try:
+                    message = await websocket.recv()
+                    data = json.loads(message)
+                    if data.get("audio"):
+                        yield base64.b64decode(data["audio"])
+                    elif data.get("isFinal"):
+                        break
+                except websockets.exceptions.ConnectionClosed:
+                    print("Connection closed")
                     break
-            except websockets.exceptions.ConnectionClosed:
-                print("Connection closed")
-                break
 
-    listen_task = asyncio.create_task(stream(listen()))
+        listen_task = asyncio.create_task(stream(listen()))
 
-    async for text in text_chunker(text_iterator):
-        await websocket.send(json.dumps({"text": text, "try_trigger_generation": True}))
+        async for text in text_chunker(text_iterator):
+            await websocket.send(
+                json.dumps({"text": text, "try_trigger_generation": True})
+            )
 
-    await websocket.send(json.dumps({"text": ""}))
-    await listen_task
+        await websocket.send(json.dumps({"text": ""}))
+
+        await listen_task
 
 
 async def generate_and_play_response(user_input, conversation_history):
@@ -209,9 +223,7 @@ async def generate_and_play_response(user_input, conversation_history):
     await text_to_speech_input_streaming(text_iterator())
 
     response_text = "".join(content_list)
-    conversation_history.append(
-        {"role": "assistant", "content": response_text.strip()}
-    )
+    conversation_history.append({"role": "assistant", "content": response_text.strip()})
 
     assistant_text = Text("🤖  ", style="green")
     assistant_text.append(response_text.strip())
@@ -227,8 +239,7 @@ def recognize_speech():
     """
     speech_key, service_region = AZUREAI_API_KEY, AZUREAI_REGION
     speech_config = speechsdk.SpeechConfig(
-        subscription=speech_key,
-        region=service_region
+        subscription=speech_key, region=service_region
     )
 
     speech_recognizer = speechsdk.SpeechRecognizer(speech_config=speech_config)
@@ -261,20 +272,66 @@ async def main(use_voice=False):
     Args:
         use_voice (bool, optional): Whether to use voice input.
     """
-    conversation_history = [
-        {"role": "system", "content": AZURE_SYSTEM_PROMPT}
-    ]
+    standby_phrases = ["enter standby mode", "go to sleep", "stop listening"]
+    wakeup_phrases = ["wake up", "I need your help", "start listening"]
+
+    standby_mode = False
+    conversation_history = load_conversation_history()
+    conversation_active = CONVERSATION_MODE
 
     while True:
         try:
-            if use_voice:
-                user_input = recognize_speech()
-                if user_input is None:
-                    continue
-            else:
-                user_input = input("\nHow can I help you? ")
+            if not standby_mode:
+                if use_voice:
+                    user_input = recognize_speech()
+                    if user_input is None:
+                        continue
+                else:
+                    user_input = input("\nHow can I help you? ")
 
-            await generate_and_play_response(user_input, conversation_history)
+                if user_input.lower() in standby_phrases:
+                    standby_mode = True
+                    console.print("\nEntering standby mode ...\n")
+                    continue
+
+                if user_input.lower() in wakeup_phrases:
+                    standby_mode = False
+                    console.print("\nWaking up ...\n")
+                    continue
+
+                if standby_mode:
+                    continue
+
+                if not standby_mode and conversation_active:
+                    if "summarize the conversation history" in user_input.lower():
+                        conversation_history = summarize_conversation_history_direct(
+                            conversation_history
+                        )
+                        save_conversation_history(conversation_history)
+                        console.print("Conversation history summarized.")
+                        continue
+
+                    if "clear all history" in user_input.lower():
+                        conversation_history = [
+                            {"role": "system", "content": AZURE_SYSTEM_PROMPT}
+                        ]
+                        save_conversation_history(conversation_history)
+                        console.print("Conversation history cleared.")
+                        continue
+
+                    if "delete the last message" in user_input.lower():
+                        if len(conversation_history) > 1:
+                            conversation_history.pop()
+                            save_conversation_history(conversation_history)
+                            console.print("Last message removed.")
+                        else:
+                            console.print("No messages to remove.")
+                        continue
+
+                    await generate_and_play_response(user_input, conversation_history)
+                    save_conversation_history(conversation_history)
+
+                    continue
 
         except KeyboardInterrupt:
             console.print("\n\nGoodbye for now ...\n")
