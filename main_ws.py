@@ -22,8 +22,8 @@ from utils.conversation import (
     summarize_conversation_history_direct,
 )
 from config_ws import (
-    AZUREAI_API_KEY,
-    AZUREAI_REGION,
+    SPEECH_KEY,
+    SPEECH_REGION,
     AZURE_API_VERSION,
     AZURE_OPENAI_ENDPOINT,
     AZURE_OPENAI_KEY,
@@ -237,7 +237,7 @@ def recognize_speech():
     Returns:
         str: The recognized text from the speech input.
     """
-    speech_key, service_region = AZUREAI_API_KEY, AZUREAI_REGION
+    speech_key, service_region = SPEECH_KEY, SPEECH_REGION
     speech_config = speechsdk.SpeechConfig(
         subscription=speech_key, region=service_region
     )
